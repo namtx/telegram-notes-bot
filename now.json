@@ -1,0 +1,5 @@
+{
+  "env": {
+    "TELE_BOT_TOKEN": "@tele_bot_token"
+  }
+}
