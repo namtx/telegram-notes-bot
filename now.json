@@ -1,6 +1,7 @@
 {
   "env": {
       "TELE_BOT_TOKEN": "@tele_bot_token",
-      "GH_OAUTH_TOKEN": "@gh_oauth_token"
+      "GH_OAUTH_TOKEN": "@gh_oauth_token",
+      "GIST_ID": "@gist_id"
   }
 }

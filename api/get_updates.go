@@ -1,31 +1,37 @@
 package handler
 
 import (
+	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/google/go-github/github"
+	"golang.org/x/oauth2"
+)
+
+const (
+	DATA_FILENAME = "data.json"
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	client := http.Client{}
-	botToken := os.Getenv("TELE_BOT_TOKEN")
-	request, err := http.NewRequest("GET", fmt.Sprintf("https://api.telegram.org/bot%s/getUpdates", botToken), nil)
+	gistId := os.Getenv("GIST_ID")
+
+	ctx := context.Background()
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: os.Getenv("GH_OAUTH_TOKEN")})
+	tc := oauth2.NewClient(ctx, ts)
+	client := github.NewClient(tc)
+
+	gist, _, err := client.Gists.Get(ctx, gistId)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	resp, err := client.Do(request)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
+	updateContent := *gist.Files[DATA_FILENAME].Content
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Fprintf(w, string(body))
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	fmt.Fprintf(w, updateContent)
 }

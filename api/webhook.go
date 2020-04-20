@@ -13,18 +13,19 @@ import (
 )
 
 const (
-	GIST_ID       = "634e8f12e2f7069cbb71ac4fd5aa4472"
 	DATA_FILENAME = "data.json"
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {
+	gistID := os.Getenv("GIST_ID")
+
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: os.Getenv("GH_OAUTH_TOKEN")},
 	)
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
-	gist, _, err := client.Gists.Get(ctx, GIST_ID)
+	gist, _, err := client.Gists.Get(ctx, gistID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -42,7 +43,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	*dataFile.Content = newContent
 
-	newGist, _, err := client.Gists.Edit(ctx, GIST_ID, gist)
+	newGist, _, err := client.Gists.Edit(ctx, gistID, gist)
 	if err != nil {
 		log.Fatal(err)
 	}
