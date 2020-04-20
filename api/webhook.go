@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -15,6 +16,28 @@ import (
 const (
 	DATA_FILENAME = "data.json"
 )
+
+type Update struct {
+	ID             int     `json:"update_id"`
+	Message        Message `json:"message"`
+	UpdatedMessage Message `json:"edited_message"`
+}
+
+type Message struct {
+	ID       int      `json:"message_id"`
+	Text     string   `json:"text"`
+	Entities []Entity `json:"entities"`
+}
+
+type Entity struct {
+	Offset int    `json:"offset"`
+	Length int    `json:"length"`
+	Type   string `json:"type"`
+}
+
+type GistContent struct {
+	Messages []Message `json:"messages"`
+}
 
 func Handler(w http.ResponseWriter, r *http.Request) {
 	gistID := os.Getenv("GIST_ID")
@@ -32,23 +55,47 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	dataFile := gist.Files[DATA_FILENAME]
 
-	newContent := *dataFile.Content
+	var update Update
+	var gistContent GistContent
 
-	update, err := ioutil.ReadAll(r.Body)
+	updateContent, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	json.Unmarshal([]byte(updateContent), &update)
+
+	json.Unmarshal([]byte(*dataFile.Content), &gistContent)
+
+	if update.UpdatedMessage.ID != 0 {
+		var found bool
+
+		for i := 0; i < len(gistContent.Messages); i++ {
+			if gistContent.Messages[i].ID == update.UpdatedMessage.ID {
+				found = true
+				gistContent.Messages[i] = update.UpdatedMessage
+			}
+		}
+
+		if !found {
+			gistContent.Messages = append(gistContent.Messages, update.UpdatedMessage)
+		}
+	} else {
+		gistContent.Messages = append(gistContent.Messages, update.Message)
+	}
+
+	newContent, err := json.Marshal(gistContent)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	newContent = newContent[:len(newContent)-1] + "," + string(update) + "]"
-
-	*dataFile.Content = newContent
+	*dataFile.Content = string(newContent)
 
 	newGist, _, err := client.Gists.Edit(ctx, gistID, gist)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Fprintf(w, *newGist.ID)
-
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, *newGist.ID)
 }
